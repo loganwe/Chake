@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chake</title>
+    <link rel="icon" type="image" href="https://cdn.shopify.com/s/files/1/2209/1363/products/3-Checkers-Photo-6.jpg?v=1535653480">
     <style>
         body {
             display: flex;
@@ -16,8 +15,8 @@
         }
 
         canvas {
-            background-color: white;
-            border: 2px solid darkgreen;
+            background-color: gray;
+            border: 10px solid gold;
         }
     </style>
 </head>
@@ -38,8 +37,8 @@
         let s2NewDirection = { x: 0, y: 0 }; // Direction change for snake 2
         let gameOver = false; // Game over flag
         let winner = null; // Variable to store the winner
-        const lastRowY = canvas.height - snakeSize; // Y coordinate of the last row
-        const firstRowY = 0; // Y coordinate of the first row
+        const lastRowY = 548; // Y coordinate of the last row
+        const firstRowY = 8; // Y coordinate of the first row
         let currentTurn = 1; // Variable to track whose turn it is (1 for Snake 1, 2 for Snake 2)
 
         class Snake {
@@ -61,7 +60,7 @@
             }
 
             moveSnake(direction, opponentSnake) {
-                if (gameOver) return false; // Stop the game if it's over
+                if (gameOver) return; // Stop the game if it's over
 
                 // Calculate the next head position based on the current direction
                 const nextHeadX = this.segments[0].x + direction.x * this.size;
@@ -73,20 +72,13 @@
                     nextHeadY >= 0 && nextHeadY + this.size <= canvas.height  // Y bounds
                 ) {
                     // Check for collision with the opponent's segments
-                    if (opponentSnake.segments.some(segment =>
+                    if (opponentSnake.segments.some(segment => 
                         nextHeadX === segment.x && nextHeadY === segment.y)) {
-                        console.log("Collision with opponent! Move not allowed.");
-                        gameOver = true;
-                        winner = opponentSnake.color;
-                        return false; // Invalid move, don't switch turns
-                    }
-
-                    // Check for self-collision
-                    if (this.segments.some((segment, index) => index !== 0 && segment.x === nextHeadX && segment.y === nextHeadY)) {
-                        console.log("Self-collision! Move not allowed.");
-                        gameOver = true;
-                        winner = opponentSnake.color;
-                        return false; // Invalid move, don't switch turns
+                        // Stop movement if colliding with any segment of the other snake
+                        console.log("Collision with opponent! Movement stopped.");
+                        gameOver=true
+                        winner=opponentSnake.color
+                        return false; // Indicate an invalid move
                     }
 
                     // Move snake's body (each segment follows the one in front)
@@ -104,23 +96,21 @@
                         this.segments.push({ ...oldTail }); // Add a new segment at the tail position
                     }
 
-                    return true; // Valid move, switch turn
+                    return true; // Indicate a valid move
                 } else {
-                    console.log("Snake hit the boundary! Move not allowed.");
-                    return false; // Invalid move, don't switch turns
+                    // If the snake is out of bounds, stop movement
+                    console.log("Snake hit the boundary.");
+                    return false; // Indicate an invalid move
                 }
             }
         }
 
-        // Center X based on grid size
-        const centerX = Math.floor(canvas.width / 2 / snakeSize) * snakeSize;
-
-        // Start snake1 (green) at the bottom center and snake2 (red) at the top center
+        // Start snake1 (green) at the bottom and snake2 (red) at the center
         const snake1 = new Snake({
-            position: { x: centerX, y: lastRowY }, color: "Green"
+            position: { x: canvas.width / 2, y: lastRowY }, color: "Green"
         });
         const snake2 = new Snake({
-            position: { x: centerX, y: firstRowY }, color: "Red"
+            position: { x: canvas.width / 2, y: firstRowY }, color: "Red"
         });
 
         // Handle keyboard input for both snakes
@@ -143,12 +133,11 @@
                             break;
                     }
 
+                    // Move snake 1 only if an arrow key was pressed
                     if (event.key.startsWith("Arrow")) {
-                        const validMove = snake1.moveSnake(s1NewDirection, snake2);
-                        if (validMove) {
-                            s1Direction = { ...s1NewDirection };
-                            currentTurn = 2;
-                        }
+                        s1Direction = { ...s1NewDirection }; // Update snake 1's direction
+                        const validMove = snake1.moveSnake(s1Direction, snake2); // Move snake 1
+                        if (validMove) currentTurn = 2; // Switch turn to Snake 2 only if the move was valid
                     }
                 }
 
@@ -169,57 +158,61 @@
                             break;
                     }
 
+                    // Move snake 2 only if a WASD key was pressed
                     if (["w", "a", "s", "d"].includes(event.key)) {
-                        const validMove = snake2.moveSnake(s2NewDirection, snake1);
-                        if (validMove) {
-                            s2Direction = { ...s2NewDirection };
-                            currentTurn = 1;
-                        }
+                        s2Direction = { ...s2NewDirection }; // Update snake 2's direction
+                        const validMove = snake2.moveSnake(s2Direction, snake1); // Move snake 2
+                        if (validMove) currentTurn = 1; // Switch turn to Snake 1 only if the move was valid
+                    }
+                    if(gameOver && event.key=="Enter"){
+                        window.location.reload()
                     }
                 }
 
+                // Check for winning condition after moving
+                checkWinCondition();
+
+                // Redraw the game after each movement
                 draw();
             }
         });
 
         function draw() {
-            // Clear the canvas
+            // Clear canvas
             c.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Draw the checkered background
-            const squareSize = snakeSize;
-            const offsetX = snake1.segments[0].x % squareSize;
-            const offsetY = snake1.segments[0].y % squareSize;
-
-            for (let y = offsetY; y < canvas.height; y += squareSize) {
-                for (let x = offsetX; x < canvas.width; x += squareSize) {
-                    if ((Math.floor((x - offsetX) / squareSize) + Math.floor((y - offsetY) / squareSize)) % 2 === 0) {
-                        c.fillStyle = "lightgray";
-                    } else {
-                        c.fillStyle = "darkgray";
-                    }
-                    c.fillRect(x, y, squareSize, squareSize);
-                }
-            }
+                c.font = "50px Arial";
+                c.fillStyle = "black";
+            c.fillText("Turn: "+currentTurn,  50,  50);
 
             // Draw both snakes
             snake1.draw();
             snake2.draw();
 
-            // Display current turn
-            c.font = "40px Arial";
-            c.fillStyle = "black";
-            c.fillText("Turn: " + currentTurn, 50, 50);
-
-            // Display game over message
+            // If game is over, show message
             if (gameOver) {
                 c.font = "50px Arial";
                 c.fillStyle = "red";
                 c.fillText("Game Over", canvas.width / 2 - 150, canvas.height / 2);
                 c.fillText(`${winner} Wins!`, canvas.width / 2 - 150, canvas.height / 2 + 60);
+                c.fillText("Press Enter to Restart", canvas.width / 2 - 200, canvas.height / 2 + 120);
             }
         }
 
+        function checkWinCondition() {
+            // Check if Snake 1 (Green) has filled the top row
+            if (snake1.segments.length === maxLength && snake1.segments.every(segment => segment.y === firstRowY)) {
+                gameOver = true;
+                winner = "Green";
+            }
+
+            // Check if Snake 2 (Red) has filled the bottom row
+            if (snake2.segments.length === maxLength && snake2.segments.every(segment => segment.y === lastRowY)) {
+                gameOver = true;
+                winner = "Red";
+            }
+        }
+
+        // Initial draw
         draw();
     </script>
 </body>
