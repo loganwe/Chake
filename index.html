@@ -35,11 +35,6 @@
             margin: 0 20px;
         }
 
-        .snake1-controls {
-            margin-left: 15px;
-        }
-
-
         .snake-controls {
             display: flex;
             flex-direction: column;
@@ -52,44 +47,32 @@
             grid-gap: 10px;
         }
 
+        .control-button,
+        .restart-button {
+            text-align: center;
+            cursor: pointer;
+            background-color: #333;
+            color: white;
+            border: 2px solid white;
+        }
+
         .control-button {
             width: 40px;
             height: 40px;
             font-size: 24px;
-            background-color: #333;
-            color: white;
-            border: 2px solid white;
-            border-radius: 2Wpx;
-            text-align: center;
             line-height: 40px;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .control-button:active {
-            background-color: #555;
         }
 
         .restart-button {
-            margin-top: 20px;
-            width: 200px;
-            height: 50px;
-            font-size: 24px;
-            background-color: #222;
-            color: white;
-            border: 2px solid white;
-            border-radius: 10px;
-            text-align: center;
-            line-height: 50px;
-            cursor: pointer;
             position: absolute;
             bottom: 20px;
             left: 50%;
+            width: 200px;
+            height: 50px;
+            font-size: 24px;
+            line-height: 50px;
+            border-radius: 10px;
             transform: translateX(-50%);
-        }
-
-        .restart-button:active {
-            background-color: #444;
         }
     </style>
 </head>
@@ -150,6 +133,7 @@
         const lastRowY = 548;
         const firstRowY = 8;
         let currentTurn = 1;
+        let singlePlayer = false;
 
         class Snake {
             constructor({ position, color }) {
@@ -157,7 +141,6 @@
                 this.size = snakeSize;
                 this.segments = [];
                 this.color = color;
-
                 this.segments.push({ x: this.position.x, y: this.position.y });
             }
 
@@ -178,10 +161,16 @@
                     nextHeadX >= 0 && nextHeadX + this.size <= canvas.width &&
                     nextHeadY >= 0 && nextHeadY + this.size <= canvas.height
                 ) {
-                    if (opponentSnake.segments.some(segment =>
-                        nextHeadX === segment.x && nextHeadY === segment.y)) {
+                    // Check for collision with opponent snake
+                    if (opponentSnake.segments.some(segment => nextHeadX === segment.x && nextHeadY === segment.y)) {
                         gameOver = true;
-                        winner = opponentSnake.color;
+                        winner = opponentSnake.color
+                        return false;
+                    }
+
+                    if (this.segments.some(segment => nextHeadX === segment.x && nextHeadY === segment.y)) {
+                        gameOver = true;
+                        winner = opponentSnake.color
                         return false;
                     }
 
@@ -196,21 +185,15 @@
                     if (this.segments.length < maxLength) {
                         this.segments.push({ ...oldTail });
                     }
-
                     return true;
                 } else {
-                    console.log("Snake hit the boundary.");
                     return false;
                 }
             }
         }
 
-        const snake1 = new Snake({
-            position: { x: canvas.width / 2, y: lastRowY }, color: "Green"
-        });
-        const snake2 = new Snake({
-            position: { x: canvas.width / 2, y: firstRowY }, color: "Red"
-        });
+        const snake1 = new Snake({ position: { x: canvas.width / 2, y: lastRowY }, color: "Green" });
+        const snake2 = new Snake({ position: { x: canvas.width / 2, y: firstRowY }, color: "Red" });
 
         document.getElementById("s1-up").addEventListener("click", () => handleMoveSnake(1, { x: 0, y: -1 }));
         document.getElementById("s1-down").addEventListener("click", () => handleMoveSnake(1, { x: 0, y: 1 }));
@@ -229,87 +212,117 @@
         document.addEventListener("keydown", (event) => {
             if (!gameOver) {
                 switch (event.key) {
-                    case "ArrowUp":
-                        if (currentTurn === 1) handleMoveSnake(1, { x: 0, y: -1 });
-                        break;
-                    case "ArrowLeft":
-                        if (currentTurn === 1) handleMoveSnake(1, { x: -1, y: 0 });
-                        break;
-                    case "ArrowDown":
-                        if (currentTurn === 1) handleMoveSnake(1, { x: 0, y: 1 });
-                        break;
-                    case "ArrowRight":
-                        if (currentTurn === 1) handleMoveSnake(1, { x: 1, y: 0 });
-                        break;
-                    case "w":
-                        if (currentTurn === 2) handleMoveSnake(2, { x: 0, y: -1 });
-                        break;
-                    case "a":
-                        if (currentTurn === 2) handleMoveSnake(2, { x: -1, y: 0 });
-                        break;
-                    case "s":
-                        if (currentTurn === 2) handleMoveSnake(2, { x: 0, y: 1 });
-                        break;
-                    case "d":
-                        if (currentTurn === 2) handleMoveSnake(2, { x: 1, y: 0 });
-                        break;
+                    case "ArrowUp": if (currentTurn === 1) handleMoveSnake(1, { x: 0, y: -1 }); break;
+                    case "ArrowLeft": if (currentTurn === 1) handleMoveSnake(1, { x: -1, y: 0 }); break;
+                    case "ArrowDown": if (currentTurn === 1) handleMoveSnake(1, { x: 0, y: 1 }); break;
+                    case "ArrowRight": if (currentTurn === 1) handleMoveSnake(1, { x: 1, y: 0 }); break;
+                    case "w": if (currentTurn === 2) handleMoveSnake(2, { x: 0, y: -1 }); break;
+                    case "a": if (currentTurn === 2) handleMoveSnake(2, { x: -1, y: 0 }); break;
+                    case "s": if (currentTurn === 2) handleMoveSnake(2, { x: 0, y: 1 }); break;
+                    case "d": if (currentTurn === 2) handleMoveSnake(2, { x: 1, y: 0 }); break;
+                    case "m": if (!gameOver) singlePlayer = !singlePlayer;break;
+                    
                 }
-            } else {
-                if (event.key == "Enter") window.location.reload();
+
+            }else{
+                if(event.key=="Enter")
+                window.location.reload()
             }
         });
 
-        function handleMoveSnake(snakeNumber, direction) {
-            if (!gameOver) {
-                if (snakeNumber === currentTurn) {
-                    if (snakeNumber === 1) {
-                        s1Direction = { ...direction };
-                        const validMove = snake1.moveSnake(s1Direction, snake2);
-                        currentTurn = 2;
-                    } else if (snakeNumber === 2) {
-                        s2Direction = { ...direction };
-                        const validMove = snake2.moveSnake(s2Direction, snake1);
-                        currentTurn = 1;
-                    }
-                    checkWinCondition();
-                    draw();
-                } else {
-                    console.log(`It's not Snake ${snakeNumber}'s turn!`);
+        function handleMoveSnake(player, direction) {
+            let moveSuccessful;
+            if (player === 1) {
+                moveSuccessful = snake1.moveSnake(direction, snake2);
+                if (moveSuccessful) currentTurn = 2;
+            } else if (player === 2) {
+                moveSuccessful = snake2.moveSnake(direction, snake1);
+                if (moveSuccessful) currentTurn = 1;
+            }
+        }
+
+        function computer() {
+            if (gameOver) return;
+
+            const playerHead = snake1.segments[0];
+            const myHead = snake2.segments[0];
+            const possibleMoves = [];
+
+            const directions = {
+                up: { x: 0, y: -1 },
+                down: { x: 0, y: 1 },
+                left: { x: -1, y: 0 },
+                right: { x: 1, y: 0 }
+            };
+
+            for (let direction in directions) {
+                const nextX = myHead.x + directions[direction].x * snakeSize;
+                const nextY = myHead.y + directions[direction].y * snakeSize;
+
+                if (isSafe(nextX, nextY, snake1, snake2)) {
+                    possibleMoves.push({
+                        direction: directions[direction],
+                        distanceToPlayer: calculateDistance(nextX, nextY, playerHead)
+                    });
                 }
             }
-        }
 
-        function draw() {
-            c.clearRect(0, 0, canvas.width, canvas.height);
-            c.font = "50px Arial";
-            c.fillStyle = "black";
-            c.fillText("Turn: " + (currentTurn === 1 ? "Player 1" : "Player 2"), 50, 50);
+            if (possibleMoves.length === 0) {
+                gameOver=true
+                winner=snake1.color
+                return;
+            }
 
-            snake1.draw();
-            snake2.draw();
+            possibleMoves.sort((a, b) => a.distanceToPlayer - b.distanceToPlayer);
+            const bestMove = possibleMoves[0].direction;
 
-            if (gameOver) {
-                c.font = "50px Arial";
-                c.fillStyle = "black";
-                c.fillText("Game Over", canvas.width / 2 - 150, canvas.height / 2);
-                c.fillText(`${winner} Wins!`, canvas.width / 2 -100, canvas.height / 2 + 60);
-                c.fillText("Press Restart", canvas.width / 2 - 100, canvas.height / 2 + 120);
+            const moveSuccessful = snake2.moveSnake(bestMove, snake1);
+            if (moveSuccessful) {
+                currentTurn = 1;
             }
         }
 
-        function checkWinCondition() {
-            if (snake1.segments.length === maxLength && snake1.segments.every(segment => segment.y === firstRowY)) {
+        function isSafe(x, y, snake1, snake2) {
+            if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
+                return false;
+            }
+            return !snake1.segments.some(segment => segment.x === x && segment.y === y) &&
+                !snake2.segments.some(segment => segment.x === x && segment.y === y);
+        }
+
+        function calculateDistance(x1, y1, head) {
+            return Math.sqrt(Math.pow(x1 - head.x, 2) + Math.pow(y1 - head.y, 2));
+        }
+
+        function animate() {
+            if (!gameOver) {
+                requestAnimationFrame(animate);
+                c.clearRect(0, 0, canvas.width, canvas.height);
+                if (currentTurn === 2 && singlePlayer) {
+                    computer();
+                }
+                snake1.draw();
+                snake2.draw();
+                check_win();
+            } else {
+                c.fillStyle = "white";
+                c.font = "40px Arial";
+                c.fillText(`${winner} Wins!`, canvas.width / 2 - 100, canvas.height / 2);
+            }
+        }
+
+        function check_win() {
+            if (snake1.segments.every(segment => segment.y === firstRowY)) {
                 gameOver = true;
-                winner = "Green";
+                winner = snake1.color;
             }
-
-            if (snake2.segments.length === maxLength && snake2.segments.every(segment => segment.y === lastRowY)) {
+            if (snake2.segments.every(segment => segment.y === lastRowY)) {
                 gameOver = true;
-                winner = "Red";
+                winner = snake2.color;
             }
         }
 
-        draw();
+        animate();
     </script>
 </body>
 
