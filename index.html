@@ -48,7 +48,7 @@
         }
 
         .control-button,
-        .restart-button {
+        .restart-button,.singlePlayer {
             text-align: center;
             cursor: pointer;
             background-color: #333;
@@ -73,6 +73,17 @@
             line-height: 50px;
             border-radius: 10px;
             transform: translateX(-50%);
+        }
+        .singlePlayer {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            width: 200px;
+            height: 50px;
+            font-size: 24px;
+            line-height: 50px;
+            border-radius: 10px;
+            transform: translateX(+50%);
         }
     </style>
 </head>
@@ -117,6 +128,7 @@
     </div>
 
     <div class="restart-button" id="restart-btn">Restart</div>
+    <div class="singlePlayer" id="singlePlayer" onclick="if (!gameOver) singlePlayer = !singlePlayer;">Single Player</div>
 
     <script>
         const canvas = document.querySelector("canvas");
@@ -125,7 +137,7 @@
         canvas.height = 576;
 
         const snakeSize = 20;
-        const maxLength = 50;
+        const maxLength = 49;
         let s1Direction = { x: 0, y: 0 };
         let s2Direction = { x: 0, y: 0 };
         let gameOver = false;
@@ -152,44 +164,44 @@
             }
 
             moveSnake(direction, opponentSnake) {
-                if (gameOver) return;
+    if (gameOver) return;
 
-                const nextHeadX = this.segments[0].x + direction.x * this.size;
-                const nextHeadY = this.segments[0].y + direction.y * this.size;
+    const nextHeadX = this.segments[0].x + direction.x * this.size;
+    const nextHeadY = this.segments[0].y + direction.y * this.size;
 
-                if (
-                    nextHeadX >= 0 && nextHeadX + this.size <= canvas.width &&
-                    nextHeadY >= 0 && nextHeadY + this.size <= canvas.height
-                ) {
-                    // Check for collision with opponent snake
-                    if (opponentSnake.segments.some(segment => nextHeadX === segment.x && nextHeadY === segment.y)) {
-                        gameOver = true;
-                        winner = opponentSnake.color
-                        return false;
-                    }
+    if (
+        nextHeadX >= 0 && nextHeadX + this.size < canvas.width &&
+        nextHeadY >= 0 && nextHeadY + this.size < canvas.height
+    ) {
+        // Check for collision with opponent snake
+        if (opponentSnake.segments.some(segment => nextHeadX === segment.x && nextHeadY === segment.y)) {
+            gameOver = true;
+            winner = opponentSnake.color;
+            return false;
+        }
 
-                    if (this.segments.some(segment => nextHeadX === segment.x && nextHeadY === segment.y)) {
-                        gameOver = true;
-                        winner = opponentSnake.color
-                        return false;
-                    }
+        if (this.segments.some(segment => nextHeadX === segment.x && nextHeadY === segment.y)) {
+            gameOver = true;
+            winner = opponentSnake.color;
+            return false;
+        }
 
-                    const oldTail = this.segments[this.segments.length - 1];
-                    for (let i = this.segments.length - 1; i > 0; i--) {
-                        this.segments[i] = { ...this.segments[i - 1] };
-                    }
+        const oldTail = this.segments[this.segments.length - 1];
+        for (let i = this.segments.length - 1; i > 0; i--) {
+            this.segments[i] = { ...this.segments[i - 1] };
+        }
 
-                    this.segments[0].x = nextHeadX;
-                    this.segments[0].y = nextHeadY;
+        this.segments[0].x = nextHeadX;
+        this.segments[0].y = nextHeadY;
 
-                    if (this.segments.length < maxLength) {
-                        this.segments.push({ ...oldTail });
-                    }
-                    return true;
-                } else {
-                    return false;
-                }
-            }
+        if (this.segments.length < maxLength) {
+            this.segments.push({ ...oldTail });
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
         }
 
         const snake1 = new Snake({ position: { x: canvas.width / 2, y: lastRowY }, color: "Green" });
@@ -242,58 +254,80 @@
         }
 
         function computer() {
-            if (gameOver) return;
+    if (gameOver || currentTurn !== 2 || !singlePlayer) return; // Ensure AI only moves when it's its turn and mode is single-player.
 
-            const playerHead = snake1.segments[0];
-            const myHead = snake2.segments[0];
-            const possibleMoves = [];
+    const myHead = snake2.segments[0];     // AI's snake head
+    const playerHead = snake1.segments[0]; // Player's snake head
+    const directions = {
+        up: { x: 0, y: -1 },
+        down: { x: 0, y: 1 },
+        left: { x: -1, y: 0 },
+        right: { x: 1, y: 0 }
+    };
 
-            const directions = {
-                up: { x: 0, y: -1 },
-                down: { x: 0, y: 1 },
-                left: { x: -1, y: 0 },
-                right: { x: 1, y: 0 }
-            };
+    let safeMoves = [];
 
-            for (let direction in directions) {
-                const nextX = myHead.x + directions[direction].x * snakeSize;
-                const nextY = myHead.y + directions[direction].y * snakeSize;
+    // Evaluate possible moves
+    for (let dir in directions) {
+        const nextX = myHead.x + directions[dir].x * snakeSize;
+        const nextY = myHead.y + directions[dir].y * snakeSize;
 
-                if (isSafe(nextX, nextY, snake1, snake2)) {
-                    possibleMoves.push({
-                        direction: directions[direction],
-                        distanceToPlayer: calculateDistance(nextX, nextY, playerHead)
-                    });
-                }
-            }
-
-            if (possibleMoves.length === 0) {
-                gameOver=true
-                winner=snake1.color
-                return;
-            }
-
-            possibleMoves.sort((a, b) => a.distanceToPlayer - b.distanceToPlayer);
-            const bestMove = possibleMoves[0].direction;
-
-            const moveSuccessful = snake2.moveSnake(bestMove, snake1);
-            if (moveSuccessful) {
-                currentTurn = 1;
-            }
+        if (isSafe(nextX, nextY, snake1, snake2)) {
+            safeMoves.push({ direction: directions[dir], x: nextX, y: nextY });
         }
+    }
 
-        function isSafe(x, y, snake1, snake2) {
-            if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
-                return false;
-            }
-            return !snake1.segments.some(segment => segment.x === x && segment.y === y) &&
-                !snake2.segments.some(segment => segment.x === x && segment.y === y);
+    if (safeMoves.length === 0) {
+        // No safe moves available; skip turn (or end game logic could be added here)
+        return;
+    }
+
+    // Prioritize moves based on proximity to player or other logic
+    safeMoves.sort((a, b) => calculateDistance(a.x, a.y, playerHead) - calculateDistance(b.x, b.y, playerHead));
+    const bestMove = safeMoves[0].direction;
+
+    snake2.moveSnake(bestMove, snake1);
+    currentTurn = 1; // Hand over turn to player
+}
+
+
+function getLeastRiskyMove(head, snake1, snake2, directions) {
+    for (let dir in directions) {
+        const nextX = head.x + directions[dir].x * snakeSize;
+        const nextY = head.y + directions[dir].y * snakeSize;
+
+        if (!collidesImmediately(nextX, nextY)) {
+            return directions[dir]; // Choose a less risky option
         }
+    }
+    return null; // No valid moves
+}
 
-        function calculateDistance(x1, y1, head) {
-            return Math.sqrt(Math.pow(x1 - head.x, 2) + Math.pow(y1 - head.y, 2));
-        }
+function isSafe(x, y, snake1, snake2) {
+    // Check for collisions with walls or other snakes
+    return !collidesWithWall(x, y) && 
+           !collidesWithSnake(x, y, snake1) && 
+           !collidesWithSnake(x, y, snake2);
+}
 
+function collidesWithWall(x, y) {
+    return x < 0 || y < 0 || x >= canvas.width || y >= canvas.height;
+}
+
+function collidesWithSnake(x, y, snake) {
+    return snake.segments.some(segment => segment.x === x && segment.y === y);
+}
+
+
+function calculateDistance(x1, y1, head) {
+    return Math.sqrt(Math.pow(x1 - head.x, 2) + Math.pow(y1 - head.y, 2));
+}
+
+
+function collidesImmediately(x, y) {
+    // Checks if a move directly collides with another snake or wall
+    return !isSafe(x, y, snake1, snake2);
+}
         function animate() {
             if (!gameOver) {
                 requestAnimationFrame(animate);
@@ -312,15 +346,15 @@
         }
 
         function check_win() {
-            if (snake1.segments.every(segment => segment.y === firstRowY)) {
-                gameOver = true;
-                winner = snake1.color;
-            }
-            if (snake2.segments.every(segment => segment.y === lastRowY)) {
-                gameOver = true;
-                winner = snake2.color;
-            }
-        }
+    if (snake1.segments.every(segment => segment.y === firstRowY)) {
+        gameOver = true;
+        winner = snake1.color;
+    }
+    if (snake2.segments.every(segment => segment.y === lastRowY)) {
+        gameOver = true;
+        winner = snake2.color;
+    }
+}
 
         animate();
     </script>
