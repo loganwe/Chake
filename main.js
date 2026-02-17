@@ -78,4 +78,4 @@ const canvas = document.querySelector("canvas");
         canvas.height / 2
       );
     }
-    },1)
+    },1000)
