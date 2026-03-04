@@ -13,9 +13,9 @@ const canvas = document.querySelector("canvas");
     const firstRowY = 8;
     let currentTurn = 1;
     let singlePlayer = false;
+
     let lastSnake = { x: 0, y: 0 };
     
-
 
 
     const snake1 = new Snake({
@@ -30,7 +30,9 @@ const canvas = document.querySelector("canvas");
     
 
     
-   
+    // let i=0
+   async function animate() {
+  }
   
   function check_win() {
     if (snake1.segments.every((segment) => segment.y === firstRowY)) {

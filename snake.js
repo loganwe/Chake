@@ -94,14 +94,6 @@ class Snake {
         }
         moveSuccessful = snake1.moveSnake(direction, snake2);
         if (moveSuccessful) {
-          // Track stalemate: reset if moved toward goal (firstRowY), else increment
-          if (snake1.segments[0].y < lastPSnake.y) {
-            milInSpotP = 0;
-          } else {
-            milInSpotP++;
-          }
-          lastPSnake.x = snake1.segments[0].x;
-          lastPSnake.y = snake1.segments[0].y;
           currentTurn = 2;
         }
       } else if (player === 2) {
