@@ -13,14 +13,10 @@ const canvas = document.querySelector("canvas");
     const firstRowY = 8;
     let currentTurn = 1;
     let singlePlayer = false;
-    let milInSpot = 0;
     let lastSnake = { x: 0, y: 0 };
-    let lastPSnake = {
-      x: 0,
-      y: 0,
-    };
-    let milInSpotP = 0;
-    const STALEMATE_LIMIT = 30; // moves before stalemate declared
+    
+
+
 
     const snake1 = new Snake({
       position: { x: canvas.width / 2, y: lastRowY },
@@ -34,9 +30,7 @@ const canvas = document.querySelector("canvas");
     
 
     
-    // let i=0
-   async function animate() {
-  }
+   
   
   function check_win() {
     if (snake1.segments.every((segment) => segment.y === firstRowY)) {
