@@ -13,16 +13,14 @@ const canvas = document.querySelector("canvas");
     const firstRowY = 8;
     let currentTurn = 1;
     let singlePlayer = false;
-    let lastSnake = {
-      x: 0,
-      y: 0,
-    };
     let milInSpot = 0;
+    let lastSnake = { x: 0, y: 0 };
     let lastPSnake = {
       x: 0,
       y: 0,
     };
     let milInSpotP = 0;
+    const STALEMATE_LIMIT = 30; // moves before stalemate declared
 
     const snake1 = new Snake({
       position: { x: canvas.width / 2, y: lastRowY },
@@ -51,24 +49,25 @@ const canvas = document.querySelector("canvas");
     }
   }
   
-  animate();
+  function check_stalemate() {
+    // Declare draw if both snakes have been stuck too long
+    if (milInSpot >= STALEMATE_LIMIT && milInSpotP >= STALEMATE_LIMIT) {
+      gameOver = true;
+      winner = "Nobody";
+    }
+  }
+
   setInterval(()=>{
     
     if (!gameOver) {
-    //  await train()
-  
-      // requestAnimationFrame(animate);
-      // i++
-      // alert(i)
-  
       c.clearRect(0, 0, canvas.width, canvas.height);
       if (currentTurn === 2 && singlePlayer) {
         computer();
-        // setTimeout("", 50);
       }
       snake1.draw();
       snake2.draw();
       check_win();
+      check_stalemate();
     } else {
       c.fillStyle = "white";
       c.font = "40px Arial";
@@ -78,4 +77,4 @@ const canvas = document.querySelector("canvas");
         canvas.height / 2
       );
     }
-    },1000)
+    },100)

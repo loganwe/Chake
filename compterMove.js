@@ -1,7 +1,7 @@
 // 🚀 **Enhanced AI with Advanced Strategic Analysis**
 
 // Configuration - ULTRA DEFENSIVE MODE
-const BASE_DEPTH = 2; // Even simpler decisions
+const BASE_DEPTH = 5; // Even simpler decisions
 const ALPHA_INIT = -Infinity;
 const BETA_INIT = Infinity;
 const VORONOI_WEIGHT = 20; // Minimal territory focus
@@ -9,7 +9,9 @@ const TRAP_WEIGHT = 50; // Don't be aggressive
 const MOBILITY_WEIGHT = 100; // MAXIMIZE having options
 const CENTER_WEIGHT = 5; // Minimal center focus
 const SAFETY_WEIGHT = 150; // MAXIMUM safety focus
-const WALL_PENALTY_MULTIPLIER = 10; // Stay far from walls
+const WALL_PENALTY_MULTIPLIER = 30; // Strongly prioritize moving away from walls
+const GOAL_WEIGHT = 200; // ✅ How strongly to reward progress toward goal row
+const BLOCK_WEIGHT = 80;  // ✅ How strongly to reward blocking opponent's path
 
 // Caching for performance
 let safetyCache = new Map();
@@ -65,75 +67,86 @@ function move() {
   console.log(`AI thinking with depth ${depth}, available space: ${availableSpace}, mobility: ${myMobility}`);
   
   // Use alpha-beta minimax for best move
-  const bestMove = findBestMoveAlphaBeta(myHead, depth, inDanger || nearWall);
-  
-  // If still no move and we're in extreme danger, use ultra-simple greedy approach
-  if (!bestMove && (inDanger || nearWall)) {
-    console.log("⚠️⚠️ EXTREME DANGER - Using greedy fallback!");
-    const greedyMove = findGreediestSafeMove(myHead);
-    if (greedyMove) {
-      console.log("Found greedy safe move:", greedyMove);
-      const newX = myHead.x + greedyMove.x * snakeSize;
-      const newY = myHead.y + greedyMove.y * snakeSize;
-      
-      const moveSuccessful = snake2.moveSnake(greedyMove, snake1);
-      if (moveSuccessful) {
-        currentTurn = 1;
-        lastSnake.x = newX;
-        lastSnake.y = newY;
-        milInSpot = 0;
-        logGameState();
-        return;
+  let chosenMove = findBestMoveAlphaBeta(myHead, depth, inDanger || nearWall);
+
+  // If minimax failed, fall back to greedy safe move
+  if (!chosenMove) {
+    console.log("⚠️ Minimax found nothing — trying greedy fallback...");
+    chosenMove = findGreediestSafeMove(myHead);
+  }
+
+  // If greedy also failed, try ANY move that doesn't immediately collide
+  if (!chosenMove) {
+    console.log("⚠️ Greedy failed — trying any valid move...");
+    const allDirs = [
+      { x: 0, y: -1 }, { x: 0, y: 1 },
+      { x: -1, y: 0 }, { x: 1, y: 0 }
+    ];
+    const currentDirection = getCurrentDirection();
+    for (let dir of allDirs) {
+      if (currentDirection && isOppositeDirection(dir, currentDirection)) continue;
+      const nx = myHead.x + dir.x * snakeSize;
+      const ny = myHead.y + dir.y * snakeSize;
+      if (!collidesWithWall(nx, ny) &&
+          !collidesWithSnake(nx, ny, snake1) &&
+          !willCollideWithSelf(nx, ny, snake2)) {
+        chosenMove = dir;
+        break;
       }
     }
   }
-  
-  if (bestMove) {
-    const newX = myHead.x + bestMove.x * snakeSize;
-    const newY = myHead.y + bestMove.y * snakeSize;
-    
-    console.log(`AI chose move: direction (${bestMove.x}, ${bestMove.y}) -> position (${newX}, ${newY})`);
-    
-    // FINAL SAFETY CHECK before executing
-    if (collidesWithWall(newX, newY)) {
-      console.log("❌ CRITICAL: Move would hit wall! Aborting.");
-      gameOver = true;
-      winner = snake1.color;
-      return;
-    }
-    
-    if (collidesWithSnake(newX, newY, snake1)) {
-      console.log("❌ CRITICAL: Move would hit opponent! Aborting.");
-      gameOver = true;
-      winner = snake1.color;
-      return;
-    }
-    
-    if (willCollideWithSelf(newX, newY, snake2)) {
-      console.log("❌ CRITICAL: Move would hit self! Aborting.");
-      gameOver = true;
-      winner = snake1.color;
-      return;
-    }
-    
-    const moveSuccessful = snake2.moveSnake(bestMove, snake1);
-    
-    if (moveSuccessful) {
-      currentTurn = 1;
-      lastSnake.x = newX;
-      lastSnake.y = newY;
-      milInSpot = 0;
-    } else {
-      console.log("❌ AI move failed!");
-      gameOver = true;
-      winner = snake1.color;
-    }
-  } else {
-    console.log("❌ AI found no valid moves. Game over.");
+
+  // Only now — if truly no valid move exists — does the AI lose
+  if (!chosenMove) {
+    console.log("❌ AI is genuinely stuck with zero valid moves. Game over.");
     gameOver = true;
     winner = snake1.color;
+    logGameState();
+    return;
   }
-  
+
+  const newX = myHead.x + chosenMove.x * snakeSize;
+  const newY = myHead.y + chosenMove.y * snakeSize;
+  console.log(`AI chose move: (${chosenMove.x}, ${chosenMove.y}) -> (${newX}, ${newY})`);
+
+  const moveSuccessful = snake2.moveSnake(chosenMove, snake1);
+  if (moveSuccessful) {
+    currentTurn = 1;
+    lastSnake.x = newX;
+    lastSnake.y = newY;
+    milInSpot = 0;
+  } else {
+    // chosenMove was rejected by moveSnake — try every other direction directly
+    console.log("⚠️ Chosen move rejected by moveSnake — trying all directions...");
+    const allDirs = [
+      { x: 0, y: -1 }, { x: 0, y: 1 },
+      { x: -1, y: 0 }, { x: 1, y: 0 }
+    ];
+    const currentDirection = getCurrentDirection();
+    let recovered = false;
+    for (let dir of allDirs) {
+      if (currentDirection && isOppositeDirection(dir, currentDirection)) continue;
+      const nx = myHead.x + dir.x * snakeSize;
+      const ny = myHead.y + dir.y * snakeSize;
+      if (collidesWithWall(nx, ny)) continue;
+      const result = snake2.moveSnake(dir, snake1);
+      if (result) {
+        currentTurn = 1;
+        lastSnake.x = nx;
+        lastSnake.y = ny;
+        milInSpot = 0;
+        recovered = true;
+        console.log("✅ Recovered with fallback direction:", dir);
+        break;
+      }
+    }
+    if (!recovered) {
+      console.log("❌ AI is genuinely stuck with zero valid moves. Game over.");
+      gameOver = true;
+      winner = snake1.color;
+    }
+  }
+
   logGameState();
 }
 
@@ -381,7 +394,21 @@ function evaluatePosition(position, isAI) {
   }
   
   let score = 0;
-  
+
+  // ✅ GOAL AWARENESS
+  // AI (snake2/Red) starts at top (firstRowY) and wins by reaching bottom (lastRowY)
+  // Reward getting closer to lastRowY; penalize opponent getting closer to firstRowY
+  const myDistToGoal = Math.abs(myHead.y - lastRowY);
+  const oppDistToGoal = Math.abs(oppHead.y - firstRowY);
+  score += (canvas.height - myDistToGoal) * GOAL_WEIGHT;
+  score -= (canvas.height - oppDistToGoal) * BLOCK_WEIGHT;
+
+  // Instant win/loss detection (all segments on goal row)
+  const aiWins = snake2.segments.every(s => s.y === lastRowY);
+  const playerWins = snake1.segments.every(s => s.y === firstRowY);
+  if (aiWins)    score += 100000;
+  if (playerWins) score -= 100000;
+
   // Calculate key metrics
   const myReach = reachableArea(myHead);
   const oppReach = reachableArea(oppHead);
@@ -389,67 +416,64 @@ function evaluatePosition(position, isAI) {
   const oppMobility = countAvailableMoves(oppHead);
   
   // Survival mode: if low mobility, prioritize safety above all else
-  const inSurvivalMode = myMobility <= 3 || myReach < 50; // Increased thresholds
+  const inSurvivalMode = myMobility <= 3 || myReach < 50;
   
   if (inSurvivalMode) {
-    // SURVIVAL MODE: Safety is everything!
-    score += myReach * 300; // MASSIVE boost to reachable area
-    score += myMobility * 150; // HUGE boost to mobility
-    score -= getWallProximityPenalty(myHead) * WALL_PENALTY_MULTIPLIER; // Avoid walls even more
-    
-    // Still avoid opponent but don't worry about territory
+    score += myReach * 300;
+    score += myMobility * 150;
+    score -= getWallProximityPenalty(myHead) * WALL_PENALTY_MULTIPLIER * 1.5;
     const distance = calculateDistance(myHead.x, myHead.y, oppHead);
     if (distance < snakeSize * 5) {
-      score -= 200; // Get FAR away from opponent when trapped
+      score -= 200;
     }
-    
     return score;
   }
   
   // NORMAL MODE: Balanced strategy
-  
-  // 1. Voronoi Territory Control (most important in late game)
+
+  // 1. Voronoi Territory Control
   const voronoi = calculateVoronoiTerritory(myHead, oppHead);
   score += voronoi.myTerritory * VORONOI_WEIGHT;
   score -= voronoi.oppTerritory * VORONOI_WEIGHT;
   
-  // 2. Reachable Area (immediate safety)
+  // 2. Reachable Area
   score += myReach * SAFETY_WEIGHT;
-  score -= oppReach * SAFETY_WEIGHT * 0.5; // Less weight on opponent reach
+  score -= oppReach * SAFETY_WEIGHT * 0.5;
   
-  // 3. Mobility (available moves)
+  // 3. Mobility
   score += myMobility * MOBILITY_WEIGHT;
   score -= oppMobility * MOBILITY_WEIGHT * 0.7;
   
-  // 4. Trap Detection (can we trap opponent?)
-  if (canTrapOpponent(myHead, oppHead)) {
-    score += TRAP_WEIGHT;
-  }
-  if (canTrapOpponent(oppHead, myHead)) {
-    score -= TRAP_WEIGHT * 1.5; // Being trapped is worse
-  }
+  // 4. Trap Detection
+  if (canTrapOpponent(myHead, oppHead)) score += TRAP_WEIGHT;
+  if (canTrapOpponent(oppHead, myHead)) score -= TRAP_WEIGHT * 1.5;
   
-  // 5. Center Control (especially early game)
-  const centerDist = getDistanceToCenter(myHead.x, myHead.y);
-  const oppCenterDist = getDistanceToCenter(oppHead.x, oppHead.y);
-  score += (canvas.width / 2 - centerDist) * CENTER_WEIGHT;
-  score -= (canvas.width / 2 - oppCenterDist) * CENTER_WEIGHT * 0.5;
+  // 5. Horizontal Center Control only (don't penalize being near goal row vertically)
+  const centerX = canvas.width / 2;
+  score += (centerX - Math.abs(myHead.x - centerX)) * CENTER_WEIGHT;
+  score -= (centerX - Math.abs(oppHead.x - centerX)) * CENTER_WEIGHT * 0.5;
   
-  // 6. Distance Management (not too close, not too far)
+  // 6. Distance Management
   const distance = calculateDistance(myHead.x, myHead.y, oppHead);
   const optimalDist = snakeSize * 8;
-  const distPenalty = Math.abs(distance - optimalDist) * 0.5;
-  score -= distPenalty;
+  score -= Math.abs(distance - optimalDist) * 0.5;
   
-  // 7. Wall Avoidance
-  score -= getWallProximityPenalty(myHead);
+  // 7. Wall Avoidance (left/right walls only — being near top/bottom is fine if it's the goal)
+  score -= getSideWallProximityPenalty(myHead) * WALL_PENALTY_MULTIPLIER;
   
-  // 8. Articulation Points (critical positions)
-  if (isArticulationPoint(myHead)) {
-    score -= 50; // Avoid positions that could trap us
-  }
+  // 8. Articulation Points
+  if (isArticulationPoint(myHead)) score -= 50;
   
   return score;
+}
+
+// 🧱 Side-wall penalty only (don't penalize proximity to goal rows)
+function getSideWallProximityPenalty(pos) {
+  let penalty = 0;
+  const margin = snakeSize * 4;
+  if (pos.x < margin) penalty += (margin - pos.x) * WALL_PENALTY_MULTIPLIER;
+  if (pos.x > canvas.width - margin) penalty += (pos.x - (canvas.width - margin)) * WALL_PENALTY_MULTIPLIER;
+  return penalty;
 }
 
 // 🗺️ **Voronoi Territory Calculation**
@@ -697,7 +721,7 @@ function isSafe(x, y) {
 }
 
 function collidesWithWall(x, y) {
-  return x < 0 || y < 0 || x >= canvas.width || y >= canvas.height;
+  return x < 0 || y < 0 || x + snakeSize > canvas.width || y + snakeSize > canvas.height;
 }
 
 function collidesWithSnake(x, y, snake, ignoreHead = false) {

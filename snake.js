@@ -9,8 +9,13 @@ class Snake {
     }
 
     draw() {
-      c.fillStyle = this.color;
-      this.segments.forEach((segment) => {
+      this.segments.forEach((segment, index) => {
+        if (index === 0) {
+          // Head: brighter/distinct color
+          c.fillStyle = "white";
+        } else {
+          c.fillStyle = this.color;
+        }
         c.fillRect(segment.x, segment.y, this.size, this.size);
       });
     }
@@ -88,11 +93,17 @@ class Snake {
           return;
         }
         moveSuccessful = snake1.moveSnake(direction, snake2);
-        milInSpotP = 0;
-        playerMoves.push([direction.x, direction.y]);
-        lastPSnake.x = snake1.position.x;
-        lastPSnake.y = snake1.position.y;
-        if (moveSuccessful) currentTurn = 2;
+        if (moveSuccessful) {
+          // Track stalemate: reset if moved toward goal (firstRowY), else increment
+          if (snake1.segments[0].y < lastPSnake.y) {
+            milInSpotP = 0;
+          } else {
+            milInSpotP++;
+          }
+          lastPSnake.x = snake1.segments[0].x;
+          lastPSnake.y = snake1.segments[0].y;
+          currentTurn = 2;
+        }
       } else if (player === 2) {
         let currentDirection = { x: 0, y: 0 };
         if (snake2.segments.length > 1) {
@@ -107,9 +118,14 @@ class Snake {
         moveSuccessful = snake2.moveSnake(direction, snake1);
         if (moveSuccessful) {
           currentTurn = 1;
-          milInSpot = 0;
-          lastSnake.x = snake2.position.x;
-          lastSnake.y = snake2.position.y;
+          // Track stalemate: reset if moved toward goal (lastRowY), else increment
+          if (snake2.segments[0].y > lastSnake.y) {
+            milInSpot = 0;
+          } else {
+            milInSpot++;
+          }
+          lastSnake.x = snake2.segments[0].x;
+          lastSnake.y = snake2.segments[0].y;
         }
       }
   }
