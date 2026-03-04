@@ -49,13 +49,6 @@ const canvas = document.querySelector("canvas");
     }
   }
   
-  function check_stalemate() {
-    // Declare draw if both snakes have been stuck too long
-    if (milInSpot >= STALEMATE_LIMIT && milInSpotP >= STALEMATE_LIMIT) {
-      gameOver = true;
-      winner = "Nobody";
-    }
-  }
 
   setInterval(()=>{
     
@@ -67,7 +60,6 @@ const canvas = document.querySelector("canvas");
       snake1.draw();
       snake2.draw();
       check_win();
-      check_stalemate();
     } else {
       c.fillStyle = "white";
       c.font = "40px Arial";
