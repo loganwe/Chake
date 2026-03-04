@@ -11,8 +11,14 @@ class Snake {
     draw() {
       this.segments.forEach((segment, index) => {
         if (index === 0) {
-          // Head: brighter/distinct color
-          c.fillStyle = "white";
+          // Head: custom color by snake
+          if (this.color.toLowerCase() === "red") {
+            c.fillStyle = "white";
+          } else if (this.color.toLowerCase() === "green") {
+            c.fillStyle = "black";
+          } else {
+            c.fillStyle = this.color;
+          }
         } else {
           c.fillStyle = this.color;
         }
