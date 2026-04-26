@@ -1,16 +1,15 @@
-// 🚀 **Enhanced AI with Advanced Strategic Analysis**
 
 // Configuration - ULTRA DEFENSIVE MODE
-const BASE_DEPTH = 5; // Even simpler decisions
+const BASE_DEPTH = 4; // Even simpler decisions
 const ALPHA_INIT = -Infinity;
 const BETA_INIT = Infinity;
-const VORONOI_WEIGHT = 20; // Minimal territory focus
+const VORONOI_WEIGHT = 30; // Minimal territory focus
 const TRAP_WEIGHT = 50; // Don't be aggressive
-const MOBILITY_WEIGHT = 100; // MAXIMIZE having options
+const MOBILITY_WEIGHT = 40; // MAXIMIZE having options
 const CENTER_WEIGHT = 5; // Minimal center focus
-const SAFETY_WEIGHT = 150; // MAXIMUM safety focus
-const WALL_PENALTY_MULTIPLIER = 30; // Strongly prioritize moving away from walls
-const GOAL_WEIGHT = 200; // ✅ How strongly to reward progress toward goal row
+const SAFETY_WEIGHT = 50; // MAXIMUM safety focus
+const WALL_PENALTY_MULTIPLIER = 8; // Strongly prioritize moving away from walls
+const GOAL_WEIGHT = 800; // ✅ How strongly to reward progress toward goal row
 const BLOCK_WEIGHT = 80;  // ✅ How strongly to reward blocking opponent's path
 
 // Caching for performance
@@ -37,7 +36,7 @@ function move() {
   
   // Check if we're in danger (low mobility = survival mode)
   const myMobility = countAvailableMoves(myHead);
-  const inDanger = myMobility <= 3; // Increased threshold
+  const inDanger = myMobility <= 1; 
   
   // Check wall proximity
   const nearWall = myHead.x < snakeSize * 3 || myHead.x > canvas.width - snakeSize * 3 ||
@@ -385,85 +384,27 @@ function alphaBetaMin(position, depth, alpha, beta, isAI) {
 
 // 🎯 **Advanced Position Evaluation**
 function evaluatePosition(position, isAI) {
-  const myHead = isAI ? position : snake2.segments[0];
-  const oppHead = isAI ? snake1.segments[0] : position;
-  
-  // If position is unsafe, heavily penalize
-  if (!isSafe(position.x, position.y)) {
-    return isAI ? -10000 : 10000;
-  }
-  
   let score = 0;
-
-  // ✅ GOAL AWARENESS
-  // AI (snake2/Red) starts at top (firstRowY) and wins by reaching bottom (lastRowY)
-  // Reward getting closer to lastRowY; penalize opponent getting closer to firstRowY
-  const myDistToGoal = Math.abs(myHead.y - lastRowY);
-  const oppDistToGoal = Math.abs(oppHead.y - firstRowY);
-  score += (canvas.height - myDistToGoal) * GOAL_WEIGHT;
-  score -= (canvas.height - oppDistToGoal) * BLOCK_WEIGHT;
-
-  // Instant win/loss detection (all segments on goal row)
-  const aiWins = snake2.segments.every(s => s.y === lastRowY);
-  const playerWins = snake1.segments.every(s => s.y === firstRowY);
-  if (aiWins)    score += 100000;
-  if (playerWins) score -= 100000;
-
-  // Calculate key metrics
-  const myReach = reachableArea(myHead);
-  const oppReach = reachableArea(oppHead);
-  const myMobility = countAvailableMoves(myHead);
-  const oppMobility = countAvailableMoves(oppHead);
+  const myHead = position;
   
-  // Survival mode: if low mobility, prioritize safety above all else
-  const inSurvivalMode = myMobility <= 3 || myReach < 50;
+  // Calculate distance to the winning row
+  const distToGoal = Math.abs(myHead.y - lastRowY);
   
-  if (inSurvivalMode) {
-    score += myReach * 300;
-    score += myMobility * 150;
-    score -= getWallProximityPenalty(myHead) * WALL_PENALTY_MULTIPLIER * 1.5;
-    const distance = calculateDistance(myHead.x, myHead.y, oppHead);
-    if (distance < snakeSize * 5) {
-      score -= 200;
-    }
-    return score;
+  // Progress Reward: The further down it goes, the higher the score
+  // We use a multiplier to ensure this beats survival instincts
+  score += (canvas.height - distToGoal) * GOAL_WEIGHT;
+
+  // Add a massive bonus if it's literally on the last row
+  if (myHead.y === lastRowY) {
+    score += 100000;
   }
-  
-  // NORMAL MODE: Balanced strategy
 
-  // 1. Voronoi Territory Control
-  const voronoi = calculateVoronoiTerritory(myHead, oppHead);
-  score += voronoi.myTerritory * VORONOI_WEIGHT;
-  score -= voronoi.oppTerritory * VORONOI_WEIGHT;
-  
-  // 2. Reachable Area
-  score += myReach * SAFETY_WEIGHT;
-  score -= oppReach * SAFETY_WEIGHT * 0.5;
-  
-  // 3. Mobility
-  score += myMobility * MOBILITY_WEIGHT;
-  score -= oppMobility * MOBILITY_WEIGHT * 0.7;
-  
-  // 4. Trap Detection
-  if (canTrapOpponent(myHead, oppHead)) score += TRAP_WEIGHT;
-  if (canTrapOpponent(oppHead, myHead)) score -= TRAP_WEIGHT * 1.5;
-  
-  // 5. Horizontal Center Control only (don't penalize being near goal row vertically)
-  const centerX = canvas.width / 2;
-  score += (centerX - Math.abs(myHead.x - centerX)) * CENTER_WEIGHT;
-  score -= (centerX - Math.abs(oppHead.x - centerX)) * CENTER_WEIGHT * 0.5;
-  
-  // 6. Distance Management
-  const distance = calculateDistance(myHead.x, myHead.y, oppHead);
-  const optimalDist = snakeSize * 8;
-  score -= Math.abs(distance - optimalDist) * 0.5;
-  
-  // 7. Wall Avoidance (left/right walls only — being near top/bottom is fine if it's the goal)
-  score -= getSideWallProximityPenalty(myHead) * WALL_PENALTY_MULTIPLIER;
-  
-  // 8. Articulation Points
-  if (isArticulationPoint(myHead)) score -= 50;
-  
+  // Only apply wall penalty for side walls (X-axis)
+  const margin = snakeSize * 2;
+  if (myHead.x < margin || myHead.x > canvas.width - margin) {
+    score -= WALL_PENALTY_MULTIPLIER * 100;
+  }
+
   return score;
 }
 
@@ -631,12 +572,17 @@ function getDistanceToCenter(x, y) {
 
 function getWallProximityPenalty(pos) {
   let penalty = 0;
-  const margin = snakeSize * 4; // Increased from 2 - stay FAR from walls
+  const margin = snakeSize * 2;
   
+  // Penalize Side Walls (X-axis)
   if (pos.x < margin) penalty += (margin - pos.x) * WALL_PENALTY_MULTIPLIER;
   if (pos.x > canvas.width - margin) penalty += (pos.x - (canvas.width - margin)) * WALL_PENALTY_MULTIPLIER;
+  
+  // Penalize Top Wall (where it started)
   if (pos.y < margin) penalty += (margin - pos.y) * WALL_PENALTY_MULTIPLIER;
-  if (pos.y > canvas.height - margin) penalty += (pos.y - (canvas.height - margin)) * WALL_PENALTY_MULTIPLIER;
+
+  // NO PENALTY for the Bottom Wall (the Goal)
+  // This allows the AI to actually touch the last row to win.
   
   return penalty;
 }
