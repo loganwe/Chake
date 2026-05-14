@@ -26,7 +26,10 @@ const canvas = document.querySelector("canvas");
       position: { x: canvas.width / 2, y: firstRowY },
       color: "Red",
     });
-
+    const snake3 = new Snake({
+      position: { x: canvas.width / 2, y: canvas.height / 2 },
+      color: "Blue",
+    })
     
 
     
@@ -47,7 +50,6 @@ const canvas = document.querySelector("canvas");
   
 
   setInterval(()=>{
-    
     if (!gameOver) {
       c.clearRect(0, 0, canvas.width, canvas.height);
       if (currentTurn === 2 && singlePlayer) {
@@ -55,6 +57,8 @@ const canvas = document.querySelector("canvas");
       }
       snake1.draw();
       snake2.draw();
+      snake3.draw();
+      
       check_win();
     } else {
       c.fillStyle = "white";
@@ -65,4 +69,4 @@ const canvas = document.querySelector("canvas");
         canvas.height / 2
       );
     }
-    },100)
+  },100)
