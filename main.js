@@ -12,7 +12,7 @@ const canvas = document.querySelector("canvas");
     const lastRowY = 548;
     const firstRowY = 8;
     let currentTurn = 1;
-    let singlePlayer = false;
+    let singlePlayer = true;
 
     let lastSnake = { x: 0, y: 0 };
     
@@ -26,7 +26,6 @@ const canvas = document.querySelector("canvas");
       position: { x: canvas.width / 2, y: firstRowY },
       color: "Red",
     });
-
     
 
     
@@ -47,7 +46,6 @@ const canvas = document.querySelector("canvas");
   
 
   setInterval(()=>{
-    
     if (!gameOver) {
       c.clearRect(0, 0, canvas.width, canvas.height);
       if (currentTurn === 2 && singlePlayer) {
@@ -55,6 +53,7 @@ const canvas = document.querySelector("canvas");
       }
       snake1.draw();
       snake2.draw();
+      
       check_win();
     } else {
       c.fillStyle = "white";
@@ -65,4 +64,4 @@ const canvas = document.querySelector("canvas");
         canvas.height / 2
       );
     }
-    },100)
+  },100)
