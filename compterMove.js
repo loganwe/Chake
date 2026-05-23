@@ -1,13 +1,13 @@
 
 // Configuration - TRAP & BLOCK MODE
-const BASE_DEPTH = 2; // Reasonable thinking depth
+const BASE_DEPTH = 2000; // Reasonable thinking depth
 const ALPHA_INIT = -Infinity;
 const BETA_INIT = Infinity;
 const VORONOI_WEIGHT = 0; // Focus on territory control
 const TRAP_WEIGHT = 200; // MAXIMIZE trap rewards
 const MOBILITY_WEIGHT = 20; // Less focus on own mobility
-const CENTER_WEIGHT = 3; // Minimal center focus
-const SAFETY_WEIGHT = 30; // Lower safety threshold - take risks to trap
+const CENTER_WEIGHT = 0; // Minimal center focus
+const SAFETY_WEIGHT = 15; // Lower safety threshold - take risks to trap
 const WALL_PENALTY_MULTIPLIER = 5; // Reduce wall avoidance for aggressive plays
 const GOAL_WEIGHT = 0; // No goal reward
 const BLOCK_WEIGHT = 150;  // MAXIMUM blocking reward
@@ -29,7 +29,7 @@ function clearCaches() {
 // 🎯 **Main AI Entry Point**
 function move() {
   clearCaches();
-  logGameState();
+
   
   const myHead = snake2.segments[0];
   const playerHead = snake1.segments[0];
@@ -42,13 +42,6 @@ function move() {
   const nearWall = myHead.x < snakeSize * 3 || myHead.x > canvas.width - snakeSize * 3 ||
                    myHead.y < snakeSize * 3 || myHead.y > canvas.height - snakeSize * 3;
   
-  if (inDanger) {
-    console.log("⚠️ SURVIVAL MODE ACTIVATED - Low mobility detected!");
-  }
-  
-  if (nearWall) {
-    console.log("⚠️ WARNING - Near wall!");
-  }
   
   // Adaptive depth based on game complexity and danger
   const availableSpace = countEmptyCells();
@@ -70,13 +63,13 @@ function move() {
 
   // If minimax failed, fall back to greedy safe move
   if (!chosenMove) {
-    console.log("⚠️ Minimax found nothing — trying greedy fallback...");
+
     chosenMove = findGreediestSafeMove(myHead);
   }
 
   // If greedy also failed, try ANY move that doesn't immediately collide
   if (!chosenMove) {
-    console.log("⚠️ Greedy failed — trying any valid move...");
+
     const allDirs = [
       { x: 0, y: -1 }, { x: 0, y: 1 },
       { x: -1, y: 0 }, { x: 1, y: 0 }
@@ -97,10 +90,10 @@ function move() {
 
   // Only now — if truly no valid move exists — does the AI lose
   if (!chosenMove) {
-    console.log("❌ AI is genuinely stuck with zero valid moves. Game over.");
+
     gameOver = true;
     winner = snake1.color;
-    logGameState();
+
     return;
   }
 
@@ -116,7 +109,7 @@ function move() {
     milInSpot = 0;
   } else {
     // chosenMove was rejected by moveSnake — try every other direction directly
-    console.log("⚠️ Chosen move rejected by moveSnake — trying all directions...");
+
     const allDirs = [
       { x: 0, y: -1 }, { x: 0, y: 1 },
       { x: -1, y: 0 }, { x: 1, y: 0 }
@@ -135,21 +128,21 @@ function move() {
         lastSnake.y = ny;
         milInSpot = 0;
         recovered = true;
-        console.log("✅ Recovered with fallback direction:", dir);
+
         break;
       }
     }
     if (!recovered) {
-      console.log("❌ AI is genuinely stuck with zero valid moves. Game over.");
+
       gameOver = true;
       winner = snake1.color;
     }
   }
 
-  logGameState();
+
 }
 
-// 🚨 **Emergency Greedy Mode** - Defensive decision making
+// 🚨 **Emergency Greedy Mode** - Trap-focused fallback decision making
 function findGreediestSafeMove(head) {
   const directions = [
     { x: 0, y: -1, name: 'up' },
@@ -213,7 +206,7 @@ function findGreediestSafeMove(head) {
     const availableMoves = countAvailableMoves(newPos);
     score += availableMoves * 5; // Light weight on own flexibility
     
-    console.log(`Greedy ${dir.name}: score ${score.toFixed(2)}`);
+
     
     if (score > bestScore) {
       bestScore = score;
@@ -255,7 +248,7 @@ function findBestMoveAlphaBeta(head, maxDepth, inDanger = false) {
     
     // CRITICAL: Prevent moving backward into own body
     if (currentDirection && isOppositeDirection(move, currentDirection)) {
-      console.log(`Skipping ${moveData.dir.name} - would move backward into body`);
+
       continue;
     }
     
@@ -263,13 +256,13 @@ function findBestMoveAlphaBeta(head, maxDepth, inDanger = false) {
     const newY = head.y + move.y * snakeSize;
     
     if (!isSafe(newX, newY)) {
-      console.log(`Skipping ${moveData.dir.name} - position unsafe`);
+
       continue;
     }
     
     // Double-check we're not hitting our own body (excluding segments that will move)
     if (willCollideWithSelf(newX, newY, snake2)) {
-      console.log(`Skipping ${moveData.dir.name} - would collide with own body`);
+
       continue;
     }
     
@@ -277,7 +270,7 @@ function findBestMoveAlphaBeta(head, maxDepth, inDanger = false) {
     const newPos = { x: newX, y: newY };
     const score = alphaBetaMin(newPos, maxDepth - 1, alpha, Math.max(alpha, bestScore), beta, true);
     
-    console.log(`Move ${move.name}: Score ${score.toFixed(2)}`);
+
     
     if (score > bestScore) {
       bestScore = score;
@@ -285,11 +278,11 @@ function findBestMoveAlphaBeta(head, maxDepth, inDanger = false) {
     }
   }
   
-  console.log(`Best move selected with score: ${bestScore.toFixed(2)}`);
+
   
   // Emergency fallback: if no move found, pick any safe move (even if it has bad score)
   if (!bestMove) {
-    console.log("No good move found! Trying emergency fallback...");
+
     for (let dir of directions) {
       const newX = head.x + dir.x * snakeSize;
       const newY = head.y + dir.y * snakeSize;
@@ -298,12 +291,13 @@ function findBestMoveAlphaBeta(head, maxDepth, inDanger = false) {
       if (!collidesWithWall(newX, newY) && 
           !collidesWithSnake(newX, newY, snake1) &&
           !willCollideWithSelf(newX, newY, snake2)) {
-        console.log(`Emergency move: ${dir.name}`);
+
         return dir;
       }
     }
   }
-  
+
+
   return bestMove;
 }
 
@@ -747,19 +741,4 @@ function collidesWithSnake(x, y, snake, ignoreHead = false) {
 
 function calculateDistance(x1, y1, head) {
   return Math.sqrt(Math.pow(x1 - head.x, 2) + Math.pow(y1 - head.y, 2));
-}
-
-function logGameState() {
-  console.log("=".repeat(50));
-  console.log("AI Head:", snake2.segments[0]);
-  console.log("AI Body Length:", snake2.segments.length);
-  if (snake2.segments.length > 1) {
-    console.log("AI Neck:", snake2.segments[1]);
-  }
-  console.log("Player Head:", snake1.segments[0]);
-  console.log("Player Body Length:", snake1.segments.length);
-  console.log("Current Turn:", currentTurn);
-  console.log("Game Over:", gameOver);
-  if (winner) console.log("Winner:", winner);
-  console.log("=".repeat(50));
 }
