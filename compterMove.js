@@ -296,7 +296,7 @@ function findBestMoveAlphaBeta(head, maxDepth, inDanger = false) {
       }
     }
   }
-  
+  //
   return bestMove;
 }
 
