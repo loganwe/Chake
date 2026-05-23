@@ -100,6 +100,7 @@ class Snake {
         }
         moveSuccessful = snake1.moveSnake(direction, snake2);
         if (moveSuccessful) {
+          console.log("player 1 position:", snake1.position);
           currentTurn = 2;
         }
       } else if (player === 2) {
@@ -115,6 +116,7 @@ class Snake {
         }
         moveSuccessful = snake2.moveSnake(direction, snake1);
         if (moveSuccessful) {
+          console.log("player 2 position:", snake2.position);
           currentTurn = 1;
           // Track stalemate: reset if moved toward goal (lastRowY), else increment
           if (snake2.segments[0].y > lastSnake.y) {

@@ -1,17 +1,16 @@
-// 🚀 **Enhanced AI with Advanced Strategic Analysis**
 
-// Configuration - ULTRA DEFENSIVE MODE
-const BASE_DEPTH = 5; // Even simpler decisions
+// Configuration - TRAP & BLOCK MODE
+const BASE_DEPTH = 2; // Reasonable thinking depth
 const ALPHA_INIT = -Infinity;
 const BETA_INIT = Infinity;
-const VORONOI_WEIGHT = 20; // Minimal territory focus
-const TRAP_WEIGHT = 50; // Don't be aggressive
-const MOBILITY_WEIGHT = 100; // MAXIMIZE having options
-const CENTER_WEIGHT = 5; // Minimal center focus
-const SAFETY_WEIGHT = 150; // MAXIMUM safety focus
-const WALL_PENALTY_MULTIPLIER = 30; // Strongly prioritize moving away from walls
-const GOAL_WEIGHT = 200; // ✅ How strongly to reward progress toward goal row
-const BLOCK_WEIGHT = 80;  // ✅ How strongly to reward blocking opponent's path
+const VORONOI_WEIGHT = 0; // Focus on territory control
+const TRAP_WEIGHT = 200; // MAXIMIZE trap rewards
+const MOBILITY_WEIGHT = 20; // Less focus on own mobility
+const CENTER_WEIGHT = 3; // Minimal center focus
+const SAFETY_WEIGHT = 30; // Lower safety threshold - take risks to trap
+const WALL_PENALTY_MULTIPLIER = 5; // Reduce wall avoidance for aggressive plays
+const GOAL_WEIGHT = 0; // No goal reward
+const BLOCK_WEIGHT = 150;  // MAXIMUM blocking reward
 
 // Caching for performance
 let safetyCache = new Map();
@@ -37,7 +36,7 @@ function move() {
   
   // Check if we're in danger (low mobility = survival mode)
   const myMobility = countAvailableMoves(myHead);
-  const inDanger = myMobility <= 3; // Increased threshold
+  const inDanger = myMobility <= 1; 
   
   // Check wall proximity
   const nearWall = myHead.x < snakeSize * 3 || myHead.x > canvas.width - snakeSize * 3 ||
@@ -150,7 +149,7 @@ function move() {
   logGameState();
 }
 
-// 🚨 **Emergency Greedy Mode** - Simplest possible decision making
+// 🚨 **Emergency Greedy Mode** - Defensive decision making
 function findGreediestSafeMove(head) {
   const directions = [
     { x: 0, y: -1, name: 'up' },
@@ -161,6 +160,8 @@ function findGreediestSafeMove(head) {
   
   // Get current direction to avoid going backward
   const currentDirection = getCurrentDirection();
+  const playerHead = snake1.segments[0];
+  const playerNearWall = isNearWall(playerHead);
   
   let bestMove = null;
   let bestScore = -Infinity;
@@ -179,17 +180,38 @@ function findGreediestSafeMove(head) {
     if (collidesWithSnake(newX, newY, snake1)) continue;
     if (willCollideWithSelf(newX, newY, snake2)) continue;
     
-    // Simple scoring: reachable area + distance from walls
+    // TRAP SCORING
     const newPos = { x: newX, y: newY };
     let score = 0;
     
-    score += reachableArea(newPos) * 10; // More space = better
-    score += countAvailableMoves(newPos) * 20; // More options = better
-    score -= getWallProximityPenalty(newPos); // Far from walls = better
+    // PRIORITY 1: Trap opponent (limit mobility)
+    const playerMobility = countAvailableMoves(playerHead);
+    if (playerMobility <= 2) {
+      score += 100 * (3 - playerMobility); // Big reward for trapping
+    }
     
-    // Prefer moving toward center
-    const centerDist = getDistanceToCenter(newX, newY);
-    score -= centerDist * 0.1;
+    // PRIORITY 2: Limit opponent space
+    const playerReachable = reachableArea(playerHead);
+    if (playerReachable < 40) {
+      score += (40 - playerReachable) * 5; // Reward for containing
+    }
+    
+    // PRIORITY 3: Block escape (be close)
+    const distToOpponent = calculateDistance(newX, newY, playerHead);
+    if (distToOpponent < snakeSize * 5) {
+      score += 80; // Bonus for blocking position
+    }
+    score -= distToOpponent * 10; // Chase opponent
+    
+    // PRIORITY 4: Walls don't matter much
+    const wallPenalty = playerNearWall 
+      ? getWallProximityPenalty(newPos) * 0.5  // Minimal when chasing
+      : getWallProximityPenalty(newPos) * 3;
+    score -= wallPenalty;
+    
+    // PRIORITY 5: Own safety (secondary)
+    const availableMoves = countAvailableMoves(newPos);
+    score += availableMoves * 5; // Light weight on own flexibility
     
     console.log(`Greedy ${dir.name}: score ${score.toFixed(2)}`);
     
@@ -287,16 +309,27 @@ function findBestMoveAlphaBeta(head, maxDepth, inDanger = false) {
 
 // 📊 **Move Ordering for Better Pruning**
 function orderMoves(head, directions) {
+  const playerHead = snake1.segments[0];
+  const playerNearWall = isNearWall(playerHead);
+  
   return directions.map(dir => {
     const newX = head.x + dir.x * snakeSize;
     const newY = head.y + dir.y * snakeSize;
     
-    // Quick heuristic evaluation
+    // Quick heuristic evaluation - trap focused
     let score = 0;
     if (isSafe(newX, newY)) {
-      score += countAvailableMoves({ x: newX, y: newY }) * 10;
-      score += getDistanceToCenter(newX, newY);
-      score -= calculateDistance(newX, newY, snake1.segments[0]) * 0.1;
+      // Trap opponent
+      const playerMobility = countAvailableMoves(playerHead);
+      if (playerMobility <= 2) {
+        score += 50 * (3 - playerMobility);
+      }
+      
+      // Close distance
+      score -= calculateDistance(newX, newY, playerHead) * 3;
+      
+      // Less weight on own safety
+      score -= getWallProximityPenalty({ x: newX, y: newY }) * 0.5;
     }
     
     return { dir, score };
@@ -383,88 +416,64 @@ function alphaBetaMin(position, depth, alpha, beta, isAI) {
   return minScore;
 }
 
-// 🎯 **Advanced Position Evaluation**
+// 🎯 **Advanced Position Evaluation** - TRAP & BLOCK FOCUS
 function evaluatePosition(position, isAI) {
-  const myHead = isAI ? position : snake2.segments[0];
-  const oppHead = isAI ? snake1.segments[0] : position;
-  
-  // If position is unsafe, heavily penalize
-  if (!isSafe(position.x, position.y)) {
-    return isAI ? -10000 : 10000;
-  }
-  
   let score = 0;
-
-  // ✅ GOAL AWARENESS
-  // AI (snake2/Red) starts at top (firstRowY) and wins by reaching bottom (lastRowY)
-  // Reward getting closer to lastRowY; penalize opponent getting closer to firstRowY
-  const myDistToGoal = Math.abs(myHead.y - lastRowY);
-  const oppDistToGoal = Math.abs(oppHead.y - firstRowY);
-  score += (canvas.height - myDistToGoal) * GOAL_WEIGHT;
-  score -= (canvas.height - oppDistToGoal) * BLOCK_WEIGHT;
-
-  // Instant win/loss detection (all segments on goal row)
-  const aiWins = snake2.segments.every(s => s.y === lastRowY);
-  const playerWins = snake1.segments.every(s => s.y === firstRowY);
-  if (aiWins)    score += 100000;
-  if (playerWins) score -= 100000;
-
-  // Calculate key metrics
-  const myReach = reachableArea(myHead);
-  const oppReach = reachableArea(oppHead);
-  const myMobility = countAvailableMoves(myHead);
-  const oppMobility = countAvailableMoves(oppHead);
+  const myHead = position;
+  const playerHead = snake1.segments[0];
   
-  // Survival mode: if low mobility, prioritize safety above all else
-  const inSurvivalMode = myMobility <= 3 || myReach < 50;
-  
-  if (inSurvivalMode) {
-    score += myReach * 300;
-    score += myMobility * 150;
-    score -= getWallProximityPenalty(myHead) * WALL_PENALTY_MULTIPLIER * 1.5;
-    const distance = calculateDistance(myHead.x, myHead.y, oppHead);
-    if (distance < snakeSize * 5) {
-      score -= 200;
-    }
-    return score;
+  // TRAP PRIORITY #1: Limit opponent's mobility (trap reward)
+  const playerMobility = countAvailableMoves(playerHead);
+  if (playerMobility <= 2) {
+    score += TRAP_WEIGHT * (3 - playerMobility); // Heavy reward if opponent is trapped
   }
   
-  // NORMAL MODE: Balanced strategy
+  // TRAP PRIORITY #2: Control territory around opponent
+  const playerReachable = reachableArea(playerHead);
+  if (playerReachable < 30) {
+    score += TRAP_WEIGHT * (30 - playerReachable) * 2; // Big reward for limiting opponent space
+  }
+  
+  // TRAP PRIORITY #3: Block opponent's escape routes
+  const distToOpponent = calculateDistance(myHead.x, myHead.y, playerHead);
+  if (distToOpponent < snakeSize * 5) {
+    score += BLOCK_WEIGHT; // Bonus for being close enough to block
+  }
+  
+  // TRAP PRIORITY #4: Maintain own safety (secondary)
+  const availableMoves = countAvailableMoves(myHead);
+  score += availableMoves * MOBILITY_WEIGHT; // Some reward for own flexibility
+  
+  // TRAP PRIORITY #5: Avoid walls (but less stringent)
+  const playerNearWall = isNearWall(playerHead);
+  const wallPenalty = playerNearWall 
+    ? getWallProximityPenalty(myHead) * SAFETY_WEIGHT * 0.1  // Minimal penalty if chasing
+    : getWallProximityPenalty(myHead) * SAFETY_WEIGHT;       // Normal penalty otherwise
+  score -= wallPenalty;
+  
+  // TRAP PRIORITY #6: Avoid articulation points ONLY if opponent has mobility
+  if (playerMobility > 2 && isArticulationPoint(myHead)) {
+    score -= 5000; // Reduced penalty - willing to take risks
+  }
+  
+  // TRAP PRIORITY #7: Stay engaged and close
+  const engagementWeight = playerNearWall ? 20 : 12; // Aggressive pursuit
+  score -= distToOpponent * engagementWeight; // Chase opponent
+  
+  // Goal is ignored
+  const distToGoal = Math.abs(myHead.y - lastRowY);
+  score += (canvas.height - distToGoal) * GOAL_WEIGHT;
 
-  // 1. Voronoi Territory Control
-  const voronoi = calculateVoronoiTerritory(myHead, oppHead);
-  score += voronoi.myTerritory * VORONOI_WEIGHT;
-  score -= voronoi.oppTerritory * VORONOI_WEIGHT;
-  
-  // 2. Reachable Area
-  score += myReach * SAFETY_WEIGHT;
-  score -= oppReach * SAFETY_WEIGHT * 0.5;
-  
-  // 3. Mobility
-  score += myMobility * MOBILITY_WEIGHT;
-  score -= oppMobility * MOBILITY_WEIGHT * 0.7;
-  
-  // 4. Trap Detection
-  if (canTrapOpponent(myHead, oppHead)) score += TRAP_WEIGHT;
-  if (canTrapOpponent(oppHead, myHead)) score -= TRAP_WEIGHT * 1.5;
-  
-  // 5. Horizontal Center Control only (don't penalize being near goal row vertically)
-  const centerX = canvas.width / 2;
-  score += (centerX - Math.abs(myHead.x - centerX)) * CENTER_WEIGHT;
-  score -= (centerX - Math.abs(oppHead.x - centerX)) * CENTER_WEIGHT * 0.5;
-  
-  // 6. Distance Management
-  const distance = calculateDistance(myHead.x, myHead.y, oppHead);
-  const optimalDist = snakeSize * 8;
-  score -= Math.abs(distance - optimalDist) * 0.5;
-  
-  // 7. Wall Avoidance (left/right walls only — being near top/bottom is fine if it's the goal)
-  score -= getSideWallProximityPenalty(myHead) * WALL_PENALTY_MULTIPLIER;
-  
-  // 8. Articulation Points
-  if (isArticulationPoint(myHead)) score -= 50;
-  
   return score;
+}
+
+// 🧱 Check if position is near a wall
+function isNearWall(pos) {
+  const margin = snakeSize * 3;
+  return pos.x < margin || 
+         pos.x > canvas.width - margin || 
+         pos.y < margin || 
+         pos.y > canvas.height - margin;
 }
 
 // 🧱 Side-wall penalty only (don't penalize proximity to goal rows)
@@ -631,12 +640,17 @@ function getDistanceToCenter(x, y) {
 
 function getWallProximityPenalty(pos) {
   let penalty = 0;
-  const margin = snakeSize * 4; // Increased from 2 - stay FAR from walls
+  const margin = snakeSize * 2;
   
+  // Penalize Side Walls (X-axis)
   if (pos.x < margin) penalty += (margin - pos.x) * WALL_PENALTY_MULTIPLIER;
   if (pos.x > canvas.width - margin) penalty += (pos.x - (canvas.width - margin)) * WALL_PENALTY_MULTIPLIER;
+  
+  // Penalize Top Wall (where it started)
   if (pos.y < margin) penalty += (margin - pos.y) * WALL_PENALTY_MULTIPLIER;
-  if (pos.y > canvas.height - margin) penalty += (pos.y - (canvas.height - margin)) * WALL_PENALTY_MULTIPLIER;
+
+  // NO PENALTY for the Bottom Wall (the Goal)
+  // This allows the AI to actually touch the last row to win.
   
   return penalty;
 }
