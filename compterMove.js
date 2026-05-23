@@ -6,8 +6,8 @@ const BETA_INIT = Infinity;
 const VORONOI_WEIGHT = 0; // Focus on territory control
 const TRAP_WEIGHT = 200; // MAXIMIZE trap rewards
 const MOBILITY_WEIGHT = 20; // Less focus on own mobility
-const CENTER_WEIGHT = 3; // Minimal center focus
-const SAFETY_WEIGHT = 30; // Lower safety threshold - take risks to trap
+const CENTER_WEIGHT = 0; // Minimal center focus
+const SAFETY_WEIGHT = 15; // Lower safety threshold - take risks to trap
 const WALL_PENALTY_MULTIPLIER = 5; // Reduce wall avoidance for aggressive plays
 const GOAL_WEIGHT = 0; // No goal reward
 const BLOCK_WEIGHT = 150;  // MAXIMUM blocking reward
@@ -142,7 +142,7 @@ function move() {
 
 }
 
-// 🚨 **Emergency Greedy Mode** - Defensive decision making
+// 🚨 **Emergency Greedy Mode** - Trap-focused fallback decision making
 function findGreediestSafeMove(head) {
   const directions = [
     { x: 0, y: -1, name: 'up' },
@@ -296,7 +296,8 @@ function findBestMoveAlphaBeta(head, maxDepth, inDanger = false) {
       }
     }
   }
-  //
+
+
   return bestMove;
 }
 
