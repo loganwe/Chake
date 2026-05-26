@@ -4,6 +4,17 @@ const canvas = document.querySelector("canvas");
     canvas.height = 576;
 
     const snakeSize = 20;
+    const turnStatusEl = document.getElementById("turn-status");
+    const modeStatusEl = document.getElementById("mode-status");
+
+    function updateStatusOverlay() {
+      if (turnStatusEl) {
+        turnStatusEl.textContent = `Turn: Player ${currentTurn}`;
+      }
+      if (modeStatusEl) {
+        modeStatusEl.textContent = singlePlayer ? "Mode: Single Player" : "Mode: Multiplayer";
+      }
+    }
     const maxLength = 49;
     let s1Direction = { x: 0, y: 0 };
     let s2Direction = { x: 0, y: 0 };
@@ -13,6 +24,8 @@ const canvas = document.querySelector("canvas");
     const firstRowY = 8;
     let currentTurn = 1;
     let singlePlayer = true;
+
+    updateStatusOverlay();
 
     let lastSnake = { x: 0, y: 0 };
     
@@ -64,4 +77,5 @@ const canvas = document.querySelector("canvas");
         canvas.height / 2
       );
     }
+    updateStatusOverlay();
   },100)
