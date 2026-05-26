@@ -16,6 +16,30 @@ body {
     justify-content: center;
   }
 
+  #status-overlay {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    border: 2px solid gold;
+    border-radius: 12px;
+    padding: 12px 20px;
+    display: flex;
+    gap: 18px;
+    z-index: 10;
+    font-family: Arial, sans-serif;
+    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  #status-overlay div {
+    min-width: 160px;
+    text-align: center;
+  }
+
   canvas {
     background-color: gray;
     border: 10px solid gold;
