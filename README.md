@@ -22,7 +22,9 @@ A browser-based snake duel game with optional AI opponent and a non-canvas overl
 - `main.js` - game loop, canvas rendering, and overlay updates
 - `snake.js` - snake class, movement, and collision logic
 - `playerMove.js` - player control handlers and keyboard shortcuts
-- `compterMove.js` - improved AI move selection and game strategy
+- `computerMove.js` - top-level AI decision flow and turn handling
+- `computerMoveUtils.js` - AI helper functions, safety checks, and caches
+- `computerMoveSearch.js` - search/evaluation logic for AI move selection
 - `ai.js` - legacy neural network code (currently unused)
 - `AI_IMPROVEMENTS.md` - technical notes on AI enhancements
 - `QUICK_START.md` - fast testing and control guide
@@ -53,7 +55,7 @@ A browser-based snake duel game with optional AI opponent and a non-canvas overl
 
 ## Notes
 
-- `compterMove.js` contains the current AI logic and strategy.
+- `computerMove.js`, `computerMoveUtils.js`, and `computerMoveSearch.js` contain the current AI logic and strategy.
 - `ai.js` is included as legacy/experimental code and is not required to run the game.
 - For development, open the browser console to inspect logs and debugging output.
 
